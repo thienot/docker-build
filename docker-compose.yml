@@ -1,0 +1,74 @@
+
+services:
+  php:
+    image: ghcr.io/thienot/php-env:v1.0.2
+    container_name: laravel-php
+    volumes:
+      - ./app:/var/www/html
+    working_dir: /var/www/html
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-webphim_tutorial}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-V@84gLw9fpTqU3!}
+      MYSQL_USER: ${DB_USERNAME:-adminweb}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-V@84gLw9fpTqU3!}
+    networks:
+      - backend
+    depends_on:
+      - mysql
+    healthcheck:
+      test: ["CMD", "php", "artisan", "tinker", "--execute=echo 'Laravel is running'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+      
+  apache:
+    image: ghcr.io/thienot/apache-env:v1.0.2
+    container_name: laravel-apache
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./app:/var/www/html
+    depends_on:
+      - php
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    networks:
+      - backend
+    
+
+  mysql:
+    image: ghcr.io/thienot/mysql-env:v1.0.2
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-webphim_tutorial}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-V@84gLw9fpTqU3!}
+      MYSQL_USER: ${DB_USERNAME:-adminweb}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-V@84gLw9fpTqU3!}
+      SERVICE_NAME: mysql
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-V@84gLw9fpTqU3!}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+volumes:
+  mysql-data:
+    driver: local
